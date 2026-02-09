@@ -1,16 +1,14 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Download, Trash2, Clock } from "lucide-react";
+import { Search, Download, Trash2, Clock, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useDownloads } from "@/hooks/useDownloads";
 import Navbar from "@/components/layout/Navbar";
 import { Navigate } from "react-router-dom";
-
-const mockDownloads = [
-  { id: "1", title: "How to Build a React App in 10 Minutes", platform: "youtube", format: "MP4", quality: "720p", date: "2 hours ago", thumbnail: "https://picsum.photos/seed/1/128/72" },
-  { id: "2", title: "Beautiful Sunset Timelapse", platform: "instagram", format: "MP4", quality: "Original", date: "Yesterday", thumbnail: "https://picsum.photos/seed/2/128/72" },
-  { id: "3", title: "Modern Interior Design Ideas", platform: "pinterest", format: "JPG", quality: "Original", date: "3 days ago", thumbnail: "https://picsum.photos/seed/3/128/72" },
-];
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 
 const platformColors: Record<string, string> = {
   youtube: "bg-youtube",
@@ -19,9 +17,34 @@ const platformColors: Record<string, string> = {
 };
 
 const History = () => {
-  const { user, loading } = useAuth();
-  if (loading) return null;
+  const { user, loading: authLoading } = useAuth();
+  const { downloads, isLoading, deleteDownload } = useDownloads();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  if (authLoading) return null;
   if (!user) return <Navigate to="/signin" replace />;
+
+  const filteredDownloads = downloads.filter((d) =>
+    d.content_title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDownload.mutateAsync(id);
+      toast({ title: "Download removed from history" });
+    } catch {
+      toast({ title: "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return "Unknown date";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,43 +57,73 @@ const History = () => {
           <div className="mt-6 flex gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search downloads..." className="pl-10 rounded-xl" />
+              <Input
+                placeholder="Search downloads..."
+                className="pl-10 rounded-xl"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="mt-6 space-y-3">
-            {mockDownloads.map((d, i) => (
-              <motion.div
-                key={d.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="flex items-center gap-4 bg-card rounded-2xl p-4 border shadow-sm hover:shadow-md transition-shadow"
-              >
-                <img src={d.thumbnail} alt="" className="w-20 h-12 rounded-lg object-cover flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium truncate">{d.title}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`${platformColors[d.platform]} text-primary-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize`}>
-                      {d.platform}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{d.format} • {d.quality}</span>
+          {isLoading ? (
+            <div className="mt-12 flex flex-col items-center justify-center text-muted-foreground">
+              <Loader2 className="w-8 h-8 animate-spin mb-2" />
+              <p>Loading downloads...</p>
+            </div>
+          ) : filteredDownloads.length === 0 ? (
+            <div className="mt-12 text-center text-muted-foreground">
+              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No downloads yet</p>
+              <p className="text-sm mt-1">Your download history will appear here</p>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-3">
+              {filteredDownloads.map((d, i) => (
+                <motion.div
+                  key={d.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-center gap-4 bg-card rounded-2xl p-4 border shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <img
+                    src={d.thumbnail_url || `https://picsum.photos/seed/${d.id}/128/72`}
+                    alt=""
+                    className="w-20 h-12 rounded-lg object-cover flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium truncate">{d.content_title || "Untitled"}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`${platformColors[d.platform] || "bg-muted"} text-primary-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize`}>
+                        {d.platform}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {d.format} • {d.quality}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {d.date}
-                  </span>
-                  <Button variant="ghost" size="icon" className="w-8 h-8">
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {formatDate(d.downloaded_at)}
+                    </span>
+                    <Button variant="ghost" size="icon" className="w-8 h-8">
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8 text-destructive"
+                      onClick={() => handleDelete(d.id)}
+                      disabled={deleteDownload.isPending}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </div>

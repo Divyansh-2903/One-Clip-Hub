@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Download, Zap, Film, History, Youtube, Instagram, ArrowRight, Check, Star } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Download, Zap, Film, History, Youtube, Instagram, ArrowRight, Check, Star, Link as LinkIcon, Search, ClipboardPaste } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { useAuth } from "@/hooks/useAuth";
 
 const features = [
   { icon: Film, title: "Multi-Platform", desc: "YouTube, Instagram & Pinterest all in one place" },
@@ -29,6 +32,41 @@ const item = {
 };
 
 const Index = () => {
+  const [url, setUrl] = useState("");
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const detectPlatform = (url: string): "youtube" | "instagram" | "pinterest" | null => {
+    if (/youtube\.com|youtu\.be/i.test(url)) return "youtube";
+    if (/instagram\.com/i.test(url)) return "instagram";
+    if (/pinterest\.com|pin\.it/i.test(url)) return "pinterest";
+    return null;
+  };
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!url.trim()) return;
+
+    const platform = detectPlatform(url);
+    if (platform) {
+      // Save URL to sessionStorage so dashboard can use it
+      sessionStorage.setItem("pendingDownloadUrl", url);
+      // Navigate to dashboard (guest access allowed)
+      navigate("/dashboard");
+    }
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setUrl(text);
+      }
+    } catch (err) {
+      console.error("Failed to read clipboard:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -60,6 +98,41 @@ const Index = () => {
             The fastest multi-platform media downloader. Paste any URL and get your content in seconds.
           </p>
 
+          {/* URL Input Bar */}
+          <form onSubmit={handleSubmit} className="mt-8 max-w-2xl mx-auto">
+            <div className="relative flex items-center gap-2 bg-card border border-border/50 rounded-2xl p-2 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="absolute left-5 pointer-events-none">
+                <LinkIcon className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <Input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Paste YouTube, Instagram or Pinterest URL here..."
+                className="flex-1 h-12 pl-10 pr-4 border-0 bg-transparent text-base focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+              />
+              <button
+                type="button"
+                onClick={handlePaste}
+                className="flex items-center justify-center w-10 h-10 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                title="Paste from clipboard"
+              >
+                <ClipboardPaste className="w-5 h-5" />
+              </button>
+              <Button
+                type="submit"
+                size="lg"
+                className="rounded-xl gradient-primary border-0 text-primary-foreground px-6 h-12 text-base font-semibold hover:opacity-90 transition-opacity shrink-0"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Supports: youtube.com, youtu.be, instagram.com, pinterest.com
+            </p>
+          </form>
+
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup">
               <Button size="lg" className="rounded-xl gradient-primary border-0 text-primary-foreground px-8 h-12 text-base font-semibold hover:opacity-90 transition-opacity">
@@ -83,7 +156,7 @@ const Index = () => {
               <Instagram className="w-6 h-6 text-instagram" /> Instagram
             </div>
             <div className="flex items-center gap-2 text-sm font-medium">
-              <svg className="w-6 h-6 text-pinterest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+              <svg className="w-6 h-6 text-pinterest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" /></svg>
               Pinterest
             </div>
           </div>

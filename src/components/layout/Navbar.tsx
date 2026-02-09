@@ -5,12 +5,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { profile } = useProfile();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Get subscription tier with proper display name
+  const getTierDisplay = () => {
+    if (!profile?.subscription_tier) return { name: 'Free', color: 'from-gray-400 to-gray-500' };
+    const tier = profile.subscription_tier.toLowerCase();
+    if (tier === 'premium') return { name: 'Premium', color: 'from-orange-400 to-pink-500' };
+    if (tier === 'pro') return { name: 'Pro', color: 'from-purple-500 to-indigo-600' };
+    return { name: 'Free', color: 'from-gray-400 to-gray-500' };
+  };
+  const tierDisplay = getTierDisplay();
 
   const publicLinks = [
     { to: "/", label: "Home" },
@@ -39,11 +51,10 @@ const Navbar = () => {
             <Link
               key={link.to}
               to={link.to}
-              className={`text-sm font-medium transition-colors relative py-1 ${
-                isActive(link.to)
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`text-sm font-medium transition-colors relative py-1 ${isActive(link.to)
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               {link.label}
               {isActive(link.to) && (
@@ -59,23 +70,37 @@ const Navbar = () => {
         {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-3">
           {user ? (
-            <div className="flex items-center gap-3">
-              <Link to="/profile">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center">
-                    <User className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                  <span className="text-sm font-medium">Profile</span>
-                </Button>
+            <div className="flex items-center gap-2">
+              {/* User Profile Display - Minimalistic with soft outline */}
+              <Link
+                to="/profile"
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-full border border-border/50 bg-card/50 hover:bg-accent/50 transition-all"
+              >
+                {/* Small Avatar */}
+                <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center">
+                  <User className="w-3.5 h-3.5 text-primary-foreground" />
+                </div>
+
+                {/* Name and Tier */}
+                <span className="text-sm font-medium text-foreground">
+                  {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                </span>
+
+                {/* Subscription Badge - Compact */}
+                <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-gradient-to-r ${tierDisplay.color} text-white`}>
+                  {tierDisplay.name}
+                </span>
               </Link>
+
+              {/* Logout Button */}
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => {
                   signOut();
                   navigate("/");
                 }}
-                className="text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive h-8 w-8"
               >
                 <LogOut className="w-4 h-4" />
               </Button>
@@ -120,9 +145,8 @@ const Navbar = () => {
                   key={link.to}
                   to={link.to}
                   onClick={() => setMobileOpen(false)}
-                  className={`text-sm font-medium py-2 ${
-                    isActive(link.to) ? "text-primary" : "text-muted-foreground"
-                  }`}
+                  className={`text-sm font-medium py-2 ${isActive(link.to) ? "text-primary" : "text-muted-foreground"
+                    }`}
                 >
                   {link.label}
                 </Link>

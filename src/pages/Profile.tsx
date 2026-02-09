@@ -1,20 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Shield, Save } from "lucide-react";
+import { User, Mail, Shield, Save, Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import Navbar from "@/components/layout/Navbar";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, preferences, isLoading, updateProfile, updatePreferences } = useProfile();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  if (loading) return null;
+  // Initialize form with profile data
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || "");
+    }
+    if (preferences) {
+      setEmailNotifications(preferences.email_notifications);
+    }
+  }, [profile, preferences]);
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/signin" replace />;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateProfile.mutateAsync({ full_name: fullName });
+      await updatePreferences.mutateAsync({ email_notifications: emailNotifications });
+      toast({ title: "Profile updated successfully!" });
+    } catch {
+      toast({ title: "Failed to update profile", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const subscriptionTier = profile?.subscription_tier || "free";
+  const isVerified = profile?.is_verified || false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,12 +68,19 @@ const Profile = () => {
                 <User className="w-8 h-8 text-primary-foreground" />
               </div>
               <div>
-                <p className="font-semibold">{user.email}</p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs font-medium">Free</span>
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Shield className="w-3 h-3" /> Verified
+                <p className="font-semibold">{fullName || user.email}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${subscriptionTier === "premium"
+                      ? "gradient-primary text-primary-foreground"
+                      : "bg-accent text-accent-foreground"
+                    }`}>
+                    {subscriptionTier}
                   </span>
+                  {isVerified && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Shield className="w-3 h-3" /> Verified
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -62,21 +106,64 @@ const Profile = () => {
                   </div>
                 </div>
                 <Button
-                  onClick={() => toast({ title: "Profile updated!" })}
+                  onClick={handleSave}
+                  disabled={saving}
                   className="rounded-xl gradient-primary border-0 text-primary-foreground hover:opacity-90"
                 >
-                  <Save className="w-4 h-4 mr-2" /> Save Changes
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save Changes
                 </Button>
+              </div>
+            </div>
+
+            {/* Preferences */}
+            <div className="bg-card rounded-2xl p-6 border">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Settings className="w-4 h-4" /> Preferences
+              </h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Email Notifications</p>
+                    <p className="text-xs text-muted-foreground">Receive updates about your downloads</p>
+                  </div>
+                  <Switch
+                    checked={emailNotifications}
+                    onCheckedChange={setEmailNotifications}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Default Quality</p>
+                    <p className="text-xs text-muted-foreground">{preferences?.default_quality || "720p"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Default Format</p>
+                    <p className="text-xs text-muted-foreground uppercase">{preferences?.default_format || "mp4"}</p>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Subscription */}
             <div className="bg-card rounded-2xl p-6 border">
               <h2 className="font-semibold mb-2">Subscription</h2>
-              <p className="text-sm text-muted-foreground">You're on the <strong>Free</strong> plan.</p>
-              <Button variant="outline" className="mt-4 rounded-xl" onClick={() => toast({ title: "Payment integration coming soon!" })}>
-                Upgrade to Premium
-              </Button>
+              <p className="text-sm text-muted-foreground">
+                You're on the <strong className="capitalize">{subscriptionTier}</strong> plan.
+              </p>
+              {subscriptionTier === "free" && (
+                <Link to="/pricing">
+                  <Button variant="outline" className="mt-4 rounded-xl">
+                    Upgrade to Premium
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </motion.div>
