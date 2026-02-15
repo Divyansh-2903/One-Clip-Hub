@@ -4,6 +4,8 @@ import { User, Mail, Shield, Save, Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import Navbar from "@/components/layout/Navbar";
@@ -16,7 +18,11 @@ const Profile = () => {
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [emailNotifications, setEmailNotifications] = useState(true);
+
   const [saving, setSaving] = useState(false);
+  const [cookieContent, setCookieContent] = useState("");
+  const [cookieStatus, setCookieStatus] = useState<{ configured: boolean; type: string } | null>(null);
+  const [savingCookies, setSavingCookies] = useState(false);
 
   // Initialize form with profile data
   useEffect(() => {
@@ -27,6 +33,54 @@ const Profile = () => {
       setEmailNotifications(preferences.email_notifications);
     }
   }, [profile, preferences]);
+
+  // Fetch cookie status
+  useEffect(() => {
+    const fetchCookieStatus = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/youtube/cookies`);
+        if (response.ok) {
+          const data = await response.json();
+          setCookieStatus(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch cookie status:", error);
+      }
+    };
+    fetchCookieStatus();
+  }, []);
+
+  const handleSaveCookies = async () => {
+    if (!cookieContent.trim()) {
+      toast({ title: "Please enter cookie content", variant: "destructive" });
+      return;
+    }
+
+    setSavingCookies(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/youtube/cookies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: cookieContent }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({ title: "Cookies saved successfully!" });
+        setCookieStatus({ configured: true, type: 'file' });
+        setCookieContent(""); // Clear input on success
+      } else {
+        toast({ title: data.error || "Failed to save cookies", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setSavingCookies(false);
+    }
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -71,8 +125,8 @@ const Profile = () => {
                 <p className="font-semibold">{fullName || user.email}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${subscriptionTier === "premium"
-                      ? "gradient-primary text-primary-foreground"
-                      : "bg-accent text-accent-foreground"
+                    ? "gradient-primary text-primary-foreground"
+                    : "bg-accent text-accent-foreground"
                     }`}>
                     {subscriptionTier}
                   </span>
@@ -147,6 +201,53 @@ const Profile = () => {
                     <p className="text-sm font-medium">Default Format</p>
                     <p className="text-xs text-muted-foreground uppercase">{preferences?.default_format || "mp4"}</p>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* YouTube Settings */}
+            <div className="bg-card rounded-2xl p-6 border">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Settings className="w-4 h-4" /> YouTube Settings
+              </h2>
+              <div className="space-y-4">
+                <Alert>
+                  <Shield className="h-4 w-4" />
+                  <AlertTitle>Age-Restricted Content</AlertTitle>
+                  <AlertDescription>
+                    To download age-restricted videos, you need to provide your YouTube cookies.
+                    Using an extension like "Get cookies.txt LOCALLY", export your cookies and paste the content below.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Netscape Cookie File Content</label>
+                    {cookieStatus?.configured && (
+                      <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Configured
+                      </span>
+                    )}
+                  </div>
+                  <Textarea
+                    placeholder="# Netscape HTTP Cookie File..."
+                    value={cookieContent}
+                    onChange={(e) => setCookieContent(e.target.value)}
+                    className="font-mono text-xs h-32"
+                  />
+                  <Button
+                    onClick={handleSaveCookies}
+                    disabled={savingCookies}
+                    className="w-full sm:w-auto"
+                    variant="secondary"
+                  >
+                    {savingCookies ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Cookies
+                  </Button>
                 </div>
               </div>
             </div>

@@ -11,6 +11,7 @@ const instagramRoutes = require('./routes/instagram');
 const pinterestRoutes = require('./routes/pinterest');
 
 const app = express();
+app.set('trust proxy', 1); // Required for Render/Vercel proxies
 const PORT = process.env.PORT || 3001;
 
 // CORS configuration - allow multiple frontend ports

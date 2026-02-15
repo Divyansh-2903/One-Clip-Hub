@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Download, Trash2, Clock, Loader2 } from "lucide-react";
+import { Search, Download, Trash2, Clock, Loader2, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useDownloads } from "@/hooks/useDownloads";
+import { useFavorites } from "@/hooks/useFavorites";
 import Navbar from "@/components/layout/Navbar";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
@@ -19,7 +20,9 @@ const platformColors: Record<string, string> = {
 const History = () => {
   const { user, loading: authLoading } = useAuth();
   const { downloads, isLoading, deleteDownload } = useDownloads();
+  const { addFavorite, deleteFavorite, isFavorited, getFavoriteByUrl } = useFavorites();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   if (authLoading) return null;
@@ -43,6 +46,37 @@ const History = () => {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch {
       return "Unknown date";
+    }
+  };
+
+  const handleRedownload = (download: any) => {
+    // Navigate to dashboard with the URL to start fresh
+    sessionStorage.setItem("pendingDownloadUrl", download.content_url);
+    navigate("/dashboard");
+  };
+
+  const handleToggleFavorite = async (download: any) => {
+    const existingFavorite = getFavoriteByUrl(download.content_url);
+
+    if (existingFavorite) {
+      try {
+        await deleteFavorite.mutateAsync(existingFavorite.id);
+        toast({ title: "Removed from favorites" });
+      } catch {
+        toast({ title: "Failed to remove favorite", variant: "destructive" });
+      }
+    } else {
+      try {
+        await addFavorite.mutateAsync({
+          platform: download.platform,
+          content_url: download.content_url,
+          content_title: download.content_title,
+          thumbnail_url: download.thumbnail_url,
+        });
+        toast({ title: "Added to favorites!" });
+      } catch {
+        toast({ title: "Failed to add favorite", variant: "destructive" });
+      }
     }
   };
 
@@ -107,7 +141,20 @@ const History = () => {
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" /> {formatDate(d.downloaded_at)}
                     </span>
-                    <Button variant="ghost" size="icon" className="w-8 h-8">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8"
+                      onClick={() => handleToggleFavorite(d)}
+                    >
+                      <Heart className={`w-4 h-4 ${isFavorited(d.content_url) ? "fill-red-500 text-red-500" : ""}`} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8"
+                      onClick={() => handleRedownload(d)}
+                    >
                       <Download className="w-4 h-4" />
                     </Button>
                     <Button

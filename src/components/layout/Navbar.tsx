@@ -6,6 +6,7 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -69,6 +70,7 @@ const Navbar = () => {
 
         {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
           {user ? (
             <div className="flex items-center gap-2">
               {/* User Profile Display - Minimalistic with soft outline */}
@@ -140,6 +142,9 @@ const Navbar = () => {
             className="md:hidden bg-card border-b overflow-hidden"
           >
             <div className="container mx-auto px-4 py-4 flex flex-col gap-3">
+              <div className="flex justify-end mb-2">
+                <ThemeToggle />
+              </div>
               {links.map((link) => (
                 <Link
                   key={link.to}

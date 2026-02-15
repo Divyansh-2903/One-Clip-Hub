@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Link as LinkIcon, Youtube, Instagram, X, Download, Heart, Clock, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,10 +201,28 @@ const Dashboard = () => {
     setProgress(0);
 
     try {
-      // Simulate progress while download happens
+      // Simulate progress with decay
+      // Fast to 70%, then slower to 85%, then crawl to 95% (merging)
+      const isHighQuality = quality === "4K" || quality === "2160p" || quality === "1080p";
+
       const progressInterval = setInterval(() => {
-        setProgress(p => Math.min(p + 5, 90));
-      }, 500);
+        setProgress(currentUserProgress => {
+          if (currentUserProgress >= 95) return 95; // Cap at 95% until done
+
+          let increment = 1;
+          if (currentUserProgress < 30) increment = 5;
+          else if (currentUserProgress < 70) increment = 2;
+          else if (currentUserProgress < 85) increment = 0.5;
+          else increment = 0.1; // Very slow for merging phase
+
+          // Slower updates for high quality
+          if (isHighQuality && currentUserProgress > 70) {
+            increment = increment / 2;
+          }
+
+          return Math.min(currentUserProgress + increment, 95);
+        });
+      }, 200);
 
       let result: { fileName: string; fileSize: number };
       let downloadUrl: string;
@@ -312,32 +330,36 @@ const Dashboard = () => {
 
           {/* Platform tabs */}
           <div className="flex gap-2 mt-6">
-            {platforms.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setActivePlatform(p.id);
-                  setVideoInfo(null);
-                }}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activePlatform === p.id
-                  ? "text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground bg-muted"
-                  }`}
-              >
-                {activePlatform === p.id && (
-                  <motion.div
-                    layoutId="platform-tab"
-                    className="absolute inset-0 gradient-primary rounded-xl"
-                    style={{ zIndex: -1 }}
-                  />
-                )}
-                {/* Reverted to default icon but ensuring visibility when active */}
-                <span className={`relative z-10 ${activePlatform === p.id ? "text-white [&>svg]:stroke-[2.5px]" : ""}`}>
-                  {p.icon}
-                </span>
-                <span className="hidden sm:inline">{p.label}</span>
-              </button>
-            ))}
+            <LayoutGroup id="dashboard-tabs">
+              {platforms.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setActivePlatform(p.id);
+                    setVideoInfo(null);
+                  }}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activePlatform === p.id
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground bg-muted"
+                    }`}
+                >
+                  {activePlatform === p.id && (
+                    <motion.div
+                      layoutId="platform-tab-dashboard"
+                      className="absolute inset-0 gradient-primary rounded-xl"
+                      style={{ zIndex: -1 }}
+                      initial={false}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  {/* Ensure visibility by forcing text color and handling icon stroke */}
+                  <span className={`relative z-10 flex items-center gap-2 ${activePlatform === p.id ? "text-primary-foreground" : ""}`}>
+                    {p.icon}
+                    <span className="hidden sm:inline">{p.label}</span>
+                  </span>
+                </button>
+              ))}
+            </LayoutGroup>
           </div>
 
           {/* URL Input */}
@@ -480,8 +502,13 @@ const Dashboard = () => {
                     animate={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  {progress < 90 ? "Downloading..." : "Processing..."} {progress}%
+                <p className="text-sm text-muted-foreground text-center animate-pulse">
+                  {progress < 70
+                    ? `Downloading... ${Math.floor(progress)}%`
+                    : progress < 85
+                      ? `Processing... ${Math.floor(progress)}%`
+                      : `Merging Audio & Video${quality === "4K" ? " (High Quality takes longer)" : ""}...`
+                  }
                 </p>
               </div>
             ) : (
@@ -500,13 +527,7 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Backend status warning */}
-          <div className="mt-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Make sure the backend server is running: <code className="bg-muted px-1 rounded">cd server && node server.js</code>
-            </p>
-          </div>
+
 
           {/* Download limit */}
           <div className="mt-6 bg-muted/50 rounded-2xl p-4 border">
