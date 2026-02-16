@@ -27,6 +27,7 @@ const Navbar = () => {
 
   const publicLinks = [
     { to: "/", label: "Home" },
+    { to: "/dashboard", label: "Downloader" },
     { to: "/pricing", label: "Pricing" },
     { to: "/faq", label: "FAQ" },
   ];

@@ -26,7 +26,7 @@ const tiers = [
   },
   {
     name: "Premium",
-    price: "$9",
+    price: "₹299",
     period: "/month",
     desc: "For power users who want it all",
     features: [
@@ -60,9 +60,8 @@ const Pricing = () => (
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className={`relative bg-card rounded-2xl p-8 border shadow-sm ${
-              tier.popular ? "border-2 border-primary/30 shadow-lg" : ""
-            }`}
+            className={`relative bg-card rounded-2xl p-8 border shadow-sm ${tier.popular ? "border-2 border-primary/30 shadow-lg" : ""
+              }`}
           >
             {tier.popular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full gradient-primary text-xs font-semibold text-primary-foreground">
@@ -89,11 +88,10 @@ const Pricing = () => (
             </ul>
             <Link to="/signup">
               <Button
-                className={`w-full mt-6 rounded-xl ${
-                  tier.popular
+                className={`w-full mt-6 rounded-xl ${tier.popular
                     ? "gradient-primary border-0 text-primary-foreground hover:opacity-90"
                     : ""
-                }`}
+                  }`}
                 variant={tier.popular ? "default" : "outline"}
               >
                 {tier.cta}

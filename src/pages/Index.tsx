@@ -288,7 +288,7 @@ const Index = () => {
               </div>
               <h3 className="text-lg font-semibold">Premium</h3>
               <div className="mt-3">
-                <span className="text-4xl font-extrabold gradient-text">$9</span>
+                <span className="text-4xl font-extrabold gradient-text">₹299</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
               <ul className="mt-6 space-y-3">

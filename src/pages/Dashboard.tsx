@@ -72,8 +72,21 @@ const Dashboard = () => {
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [availableQualities, setAvailableQualities] = useState<string[]>([]);
 
+  // Guest download tracking
+  const [guestDownloadCount, setGuestDownloadCount] = useState(() => {
+    const stored = localStorage.getItem("guestDownloads");
+    if (stored) {
+      const { date, count } = JSON.parse(stored);
+      if (new Date(date).toDateString() === new Date().toDateString()) {
+        return count;
+      }
+    }
+    return 0;
+  });
+
   const isPremium = profile?.subscription_tier === "premium";
-  const remainingDownloads = isPremium ? Infinity : FREE_DAILY_LIMIT - todayCount;
+  const currentTodayCount = user ? todayCount : guestDownloadCount;
+  const remainingDownloads = isPremium ? Infinity : FREE_DAILY_LIMIT - currentTodayCount;
 
   useEffect(() => {
     if (url) {
@@ -178,10 +191,8 @@ const Dashboard = () => {
   };
 
   const handleDownload = async () => {
-    if (!user) {
-      toast({ title: "Please sign in to download", variant: "destructive" });
-      return;
-    }
+    // Removed strict sign-in check for basic downloads
+    // if (!user) { ... }
 
     if (remainingDownloads <= 0) {
       toast({
@@ -242,23 +253,35 @@ const Dashboard = () => {
       clearInterval(progressInterval);
       setProgress(100);
 
-      // Save to database (non-blocking - don't fail download if this fails)
-      try {
-        await addDownload.mutateAsync({
-          platform: activePlatform,
-          content_url: url,
-          content_title: videoInfo.title,
-          thumbnail_url: videoInfo.thumbnail,
-          format: format,
-          quality: quality,
-          content_type: format === "MP3" ? "audio" : (format === "JPG" || format === "PNG" ? "image" : "video"),
-          file_size: result.fileSize,
-          duration: videoInfo.duration,
-          status: "completed",
-        });
-      } catch (dbError) {
-        console.warn('Failed to save download to database:', dbError);
-        // Don't throw - download was successful, just DB save failed
+      // Increment guest count if not logged in
+      if (!user) {
+        const newCount = guestDownloadCount + 1;
+        setGuestDownloadCount(newCount);
+        localStorage.setItem("guestDownloads", JSON.stringify({
+          date: new Date().toISOString(),
+          count: newCount
+        }));
+      }
+
+      // Save to database (only if logged in)
+      if (user) {
+        try {
+          await addDownload.mutateAsync({
+            platform: activePlatform,
+            content_url: url,
+            content_title: videoInfo.title,
+            thumbnail_url: videoInfo.thumbnail,
+            format: format,
+            quality: quality,
+            content_type: format === "MP3" ? "audio" : (format === "JPG" || format === "PNG" ? "image" : "video"),
+            file_size: result.fileSize,
+            duration: videoInfo.duration,
+            status: "completed",
+          });
+        } catch (dbError) {
+          console.warn('Failed to save download to database:', dbError);
+          // Don't throw - download was successful, just DB save failed
+        }
       }
 
       // Trigger file download
@@ -339,21 +362,21 @@ const Dashboard = () => {
                     setVideoInfo(null);
                   }}
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activePlatform === p.id
-                    ? "text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground bg-muted"
+                    ? "text-white dark:text-black"
+                    : "text-muted-foreground hover:text-foreground bg-muted/50"
                     }`}
                 >
                   {activePlatform === p.id && (
                     <motion.div
                       layoutId="platform-tab-dashboard"
-                      className="absolute inset-0 gradient-primary rounded-xl"
-                      style={{ zIndex: -1 }}
+                      className="absolute inset-0 bg-black dark:bg-white rounded-xl shadow-md"
+                      style={{ zIndex: 0 }}
                       initial={false}
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
                   )}
                   {/* Ensure visibility by forcing text color and handling icon stroke */}
-                  <span className={`relative z-10 flex items-center gap-2 ${activePlatform === p.id ? "text-primary-foreground" : ""}`}>
+                  <span className={`relative z-10 flex items-center gap-2 ${activePlatform === p.id ? "text-white dark:text-black" : ""}`}>
                     {p.icon}
                     <span className="hidden sm:inline">{p.label}</span>
                   </span>
@@ -534,7 +557,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">Daily Downloads</span>
               <span className="text-muted-foreground">
-                {isPremium ? "Unlimited" : `${todayCount} / ${FREE_DAILY_LIMIT}`}
+                {isPremium ? "Unlimited" : `${currentTodayCount} / ${FREE_DAILY_LIMIT}`}
               </span>
             </div>
             {!isPremium && (
@@ -542,7 +565,7 @@ const Dashboard = () => {
                 <div className="mt-2 h-2 bg-border rounded-full overflow-hidden">
                   <div
                     className="h-full gradient-primary rounded-full transition-all"
-                    style={{ width: `${Math.min((todayCount / FREE_DAILY_LIMIT) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((currentTodayCount / FREE_DAILY_LIMIT) * 100, 100)}%` }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
