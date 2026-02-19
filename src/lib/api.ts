@@ -1,4 +1,10 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Check if user has opted for local backend
+const useLocalBackend = localStorage.getItem('USE_LOCAL_BACKEND') === 'true';
+const API_BASE_URL = useLocalBackend
+    ? 'http://localhost:3001'
+    : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
+
+console.log('API Base URL:', API_BASE_URL, '(Local Mode:', useLocalBackend, ')');
 
 export interface VideoInfo {
     id: string;
@@ -319,3 +325,186 @@ export function getProxyThumbnailUrl(originalUrl: string): string {
     return `${API_BASE_URL}/api/proxy/thumbnail?url=${encodeURIComponent(originalUrl)}`;
 }
 
+
+// =====================
+// TikTok API
+// =====================
+
+export interface TikTokInfo {
+    id: string;
+    title: string;
+    description?: string;
+    thumbnail: string;
+    duration: number;
+    durationFormatted: string | null;
+    channel: string;
+    channelUrl?: string;
+    viewCount?: number;
+    likeCount?: number;
+    uploadDate?: string;
+    url: string;
+    contentType: 'video';
+}
+
+export async function fetchTikTokInfo(url: string): Promise<TikTokInfo> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/tiktok/info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch TikTok info');
+        }
+
+        return response.json();
+    } catch (error) {
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error('Cannot connect to server. Make sure the backend is running on port 3001.');
+        }
+        throw error;
+    }
+}
+
+export async function downloadTikTok(url: string, format: string, quality: string): Promise<DownloadResult> {
+    const response = await fetch(`${API_BASE_URL}/api/tiktok/download-info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, format, quality }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to download TikTok content');
+    }
+
+    return response.json();
+}
+
+export function getTikTokFileUrl(fileName: string): string {
+    return `${API_BASE_URL}/api/tiktok/file/${encodeURIComponent(fileName)}`;
+}
+
+// =====================
+// Twitter/X API
+// =====================
+
+export interface TwitterInfo {
+    id: string;
+    title: string;
+    description?: string;
+    thumbnail: string;
+    duration: number;
+    durationFormatted: string | null;
+    channel: string;
+    channelUrl?: string;
+    viewCount?: number;
+    likeCount?: number;
+    retweetCount?: number;
+    uploadDate?: string;
+    url: string;
+    contentType: 'video';
+}
+
+export async function fetchTwitterInfo(url: string): Promise<TwitterInfo> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/twitter/info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch Twitter/X info');
+        }
+
+        return response.json();
+    } catch (error) {
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error('Cannot connect to server. Make sure the backend is running on port 3001.');
+        }
+        throw error;
+    }
+}
+
+export async function downloadTwitter(url: string, format: string, quality: string): Promise<DownloadResult> {
+    const response = await fetch(`${API_BASE_URL}/api/twitter/download-info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, format, quality }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to download Twitter/X content');
+    }
+
+    return response.json();
+}
+
+export function getTwitterFileUrl(fileName: string): string {
+    return `${API_BASE_URL}/api/twitter/file/${encodeURIComponent(fileName)}`;
+}
+
+// =====================
+// Facebook API
+// =====================
+
+export interface FacebookInfo {
+    id: string;
+    title: string;
+    description?: string;
+    thumbnail: string;
+    duration: number;
+    durationFormatted: string | null;
+    channel: string;
+    channelUrl?: string;
+    viewCount?: number;
+    uploadDate?: string;
+    url: string;
+    contentType: 'video';
+}
+
+export async function fetchFacebookInfo(url: string): Promise<FacebookInfo> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/facebook/info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch Facebook info');
+        }
+
+        return response.json();
+    } catch (error) {
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error('Cannot connect to server. Make sure the backend is running on port 3001.');
+        }
+        throw error;
+    }
+}
+
+export async function downloadFacebook(url: string, format: string, quality: string): Promise<DownloadResult> {
+    const response = await fetch(`${API_BASE_URL}/api/facebook/download-info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, format, quality }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to download Facebook content');
+    }
+
+    return response.json();
+}
+
+export function getFacebookFileUrl(fileName: string): string {
+    return `${API_BASE_URL}/api/facebook/file/${encodeURIComponent(fileName)}`;
+}

@@ -9,8 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import Navbar from "@/components/layout/Navbar";
-import { Navigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Laptop } from "lucide-react";
 
 const Profile = () => {
   const { user, loading: authLoading } = useAuth();
@@ -23,6 +24,31 @@ const Profile = () => {
   const [cookieContent, setCookieContent] = useState("");
   const [cookieStatus, setCookieStatus] = useState<{ configured: boolean; type: string } | null>(null);
   const [savingCookies, setSavingCookies] = useState(false);
+  const [useLocalBackend, setUseLocalBackend] = useState(false);
+
+  useEffect(() => {
+    // Check local backend preference
+    setUseLocalBackend(localStorage.getItem('USE_LOCAL_BACKEND') === 'true');
+  }, []);
+
+  const toggleLocalBackend = (checked: boolean) => {
+    setUseLocalBackend(checked);
+    if (checked) {
+      localStorage.setItem('USE_LOCAL_BACKEND', 'true');
+      toast({
+        title: "Local Mode Enabled",
+        description: "Switched to local backend. App will reload."
+      });
+    } else {
+      localStorage.removeItem('USE_LOCAL_BACKEND');
+      toast({
+        title: "Remote Mode Enabled",
+        description: "Switched to deployed backend. App will reload."
+      });
+    }
+    // Reload to apply new API_BASE_URL
+    setTimeout(() => window.location.reload(), 1000);
+  };
 
   // Initialize form with profile data
   useEffect(() => {
@@ -252,6 +278,35 @@ const Profile = () => {
               </div>
             </div>
 
+            {/* Connection Settings - Local Companion */}
+            <div className="bg-card rounded-2xl p-6 border border-indigo-500/20 shadow-sm">
+              <h2 className="font-semibold mb-4 flex items-center gap-2 text-indigo-500">
+                <Laptop className="w-4 h-4" /> Connection Settings
+              </h2>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Local Companion Mode</p>
+                  <p className="text-xs text-muted-foreground max-w-[280px]">
+                    Use your own computer as the server to bypass IP blocks and use local cookies (Chrome/Firefox).
+                  </p>
+                </div>
+                <Switch
+                  checked={useLocalBackend}
+                  onCheckedChange={toggleLocalBackend}
+                />
+              </div>
+              {useLocalBackend && (
+                <div className="mt-4 p-3 bg-indigo-500/10 rounded-lg text-xs text-indigo-600 dark:text-indigo-400">
+                  <p className="font-semibold mb-1">Set up instructions:</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Open <code>Backend/start_backend.bat</code></li>
+                    <li>Select your browser (e.g., Chrome)</li>
+                    <li>Keep the window open while using the app</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+
             {/* Subscription */}
             <div className="bg-card rounded-2xl p-6 border">
               <h2 className="font-semibold mb-2">Subscription</h2>
@@ -266,10 +321,10 @@ const Profile = () => {
                 </Link>
               )}
             </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+          </div >
+        </motion.div >
+      </div >
+    </div >
   );
 };
 

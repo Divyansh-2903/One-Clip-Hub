@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { Link as LinkIcon, Youtube, Instagram, X, Download, Heart, Clock, Loader2, AlertTriangle } from "lucide-react";
+import { Link as LinkIcon, Youtube, Instagram, X, Facebook, Music2, Download, Heart, Clock, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -14,10 +14,13 @@ import {
   fetchVideoInfo, downloadVideo, getFileUrl, type VideoInfo,
   fetchInstagramInfo, downloadInstagram, getInstagramFileUrl,
   fetchPinterestInfo, downloadPinterest, getPinterestFileUrl,
+  fetchTikTokInfo, downloadTikTok, getTikTokFileUrl,
+  fetchTwitterInfo, downloadTwitter, getTwitterFileUrl,
+  fetchFacebookInfo, downloadFacebook, getFacebookFileUrl,
   getProxyThumbnailUrl
 } from "@/lib/api";
 
-type Platform = "youtube" | "instagram" | "pinterest";
+type Platform = "youtube" | "instagram" | "pinterest" | "tiktok" | "twitter" | "facebook";
 
 const platforms: { id: Platform; label: string; icon: React.ReactNode; color: string }[] = [
   { id: "youtube", label: "YouTube", icon: <Youtube className="w-4 h-4" />, color: "bg-youtube" },
@@ -32,24 +35,36 @@ const platforms: { id: Platform; label: string; icon: React.ReactNode; color: st
     ),
     color: "bg-pinterest",
   },
+  { id: "tiktok", label: "TikTok", icon: <Music2 className="w-4 h-4" />, color: "bg-black dark:bg-white" },
+  { id: "twitter", label: "Twitter/X", icon: <X className="w-4 h-4" />, color: "bg-black dark:bg-white" },
+  { id: "facebook", label: "Facebook", icon: <Facebook className="w-4 h-4" />, color: "bg-blue-600" },
 ];
 
 const qualityOptions: Record<Platform, string[]> = {
   youtube: ["1080p", "720p", "480p", "360p"],
   instagram: ["Original", "High", "Medium"],
   pinterest: ["Original", "High", "Medium"],
+  tiktok: ["Original", "HD", "SD"],
+  twitter: ["Original", "High", "Medium"],
+  facebook: ["Original", "HD", "SD"],
 };
 
 const formatOptions: Record<Platform, string[]> = {
   youtube: ["MP4", "MP3"],
   instagram: ["MP4", "JPG"],
   pinterest: ["JPG", "PNG", "MP4"],
+  tiktok: ["MP4", "MP3"],
+  twitter: ["MP4", "GIF"],
+  facebook: ["MP4", "MP3"],
 };
 
 const detectPlatform = (url: string): Platform | null => {
   if (/youtube\.com|youtu\.be/i.test(url)) return "youtube";
   if (/instagram\.com/i.test(url)) return "instagram";
   if (/pinterest\.com|pin\.it/i.test(url)) return "pinterest";
+  if (/tiktok\.com/i.test(url)) return "tiktok";
+  if (/twitter\.com|x\.com/i.test(url)) return "twitter";
+  if (/facebook\.com|fb\.watch/i.test(url)) return "facebook";
   return null;
 };
 
@@ -125,7 +140,7 @@ const Dashboard = () => {
     }
     const detected = detectPlatform(url);
     if (!detected) {
-      toast({ title: "Invalid URL", description: "Please enter a valid YouTube, Instagram, or Pinterest URL", variant: "destructive" });
+      toast({ title: "Invalid URL", description: "Please enter a valid URL supported by the selected platform", variant: "destructive" });
       return;
     }
 
@@ -159,6 +174,54 @@ const Dashboard = () => {
           url: url
         };
         setAvailableQualities(qualityOptions.instagram);
+      } else if (detected === "tiktok") {
+        const tiktokInfo = await fetchTikTokInfo(url);
+        info = {
+          id: tiktokInfo.id,
+          title: tiktokInfo.title,
+          description: tiktokInfo.description,
+          thumbnail: tiktokInfo.thumbnail ? getProxyThumbnailUrl(tiktokInfo.thumbnail) : undefined,
+          duration: tiktokInfo.duration,
+          durationFormatted: tiktokInfo.durationFormatted || "",
+          channel: tiktokInfo.channel,
+          channelUrl: tiktokInfo.channelUrl,
+          viewCount: tiktokInfo.viewCount,
+          formats: { video: [], audio: [] },
+          url: url
+        };
+        setAvailableQualities(qualityOptions.tiktok);
+      } else if (detected === "twitter") {
+        const twitterInfo = await fetchTwitterInfo(url);
+        info = {
+          id: twitterInfo.id,
+          title: twitterInfo.title,
+          description: twitterInfo.description,
+          thumbnail: twitterInfo.thumbnail ? getProxyThumbnailUrl(twitterInfo.thumbnail) : undefined,
+          duration: twitterInfo.duration,
+          durationFormatted: twitterInfo.durationFormatted || "",
+          channel: twitterInfo.channel,
+          channelUrl: twitterInfo.channelUrl,
+          viewCount: twitterInfo.viewCount,
+          formats: { video: [], audio: [] },
+          url: url
+        };
+        setAvailableQualities(qualityOptions.twitter);
+      } else if (detected === "facebook") {
+        const fbInfo = await fetchFacebookInfo(url);
+        info = {
+          id: fbInfo.id,
+          title: fbInfo.title,
+          description: fbInfo.description,
+          thumbnail: fbInfo.thumbnail ? getProxyThumbnailUrl(fbInfo.thumbnail) : undefined,
+          duration: fbInfo.duration,
+          durationFormatted: fbInfo.durationFormatted || "",
+          channel: fbInfo.channel,
+          channelUrl: fbInfo.channelUrl,
+          viewCount: fbInfo.viewCount,
+          formats: { video: [], audio: [] },
+          url: url
+        };
+        setAvailableQualities(qualityOptions.facebook);
       } else {
         // Pinterest
         const pinInfo = await fetchPinterestInfo(url);
@@ -244,6 +307,15 @@ const Dashboard = () => {
       } else if (activePlatform === "instagram") {
         result = await downloadInstagram(url, format, quality);
         downloadUrl = getInstagramFileUrl(result.fileName);
+      } else if (activePlatform === "tiktok") {
+        result = await downloadTikTok(url, format, quality);
+        downloadUrl = getTikTokFileUrl(result.fileName);
+      } else if (activePlatform === "twitter") {
+        result = await downloadTwitter(url, format, quality);
+        downloadUrl = getTwitterFileUrl(result.fileName);
+      } else if (activePlatform === "facebook") {
+        result = await downloadFacebook(url, format, quality);
+        downloadUrl = getFacebookFileUrl(result.fileName);
       } else {
         // Pinterest
         result = await downloadPinterest(url, format);
